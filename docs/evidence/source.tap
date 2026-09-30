@@ -1,0 +1,207 @@
+TAP version 13
+# Subtest: Codex assessment accepts minimal allow and prose envelope; rejects ambiguous protocol
+ok 1 - Codex assessment accepts minimal allow and prose envelope; rejects ambiguous protocol
+  ---
+  duration_ms: 1.618777
+  type: 'test'
+  ...
+# Subtest: private investigation refuses writes, unknown host capabilities, oversized reads and binary data
+ok 2 - private investigation refuses writes, unknown host capabilities, oversized reads and binary data
+  ---
+  duration_ms: 12791.469321
+  type: 'test'
+  ...
+# Subtest: config rejects invalid budgets/routes; default circuit breaker counts 10 / 50
+ok 3 - config rejects invalid budgets/routes; default circuit breaker counts 10 / 50
+  ---
+  duration_ms: 1.304151
+  type: 'test'
+  ...
+# Subtest: cancelled queue entries do not consume review slots or starve remaining reviews
+ok 4 - cancelled queue entries do not consume review slots or starve remaining reviews
+  ---
+  duration_ms: 0.975113
+  type: 'test'
+  ...
+# Subtest: private filesystem investigation reads actual bytes and never dispatches a host tool
+ok 5 - private filesystem investigation reads actual bytes and never dispatches a host tool
+  ---
+  duration_ms: 1275.843721
+  type: 'test'
+  ...
+# Subtest: review parse failures retry within budget; exhausted output cannot execute unattended
+ok 6 - review parse failures retry within budget; exhausted output cannot execute unattended
+  ---
+  duration_ms: 1771.934462
+  type: 'test'
+  ...
+# Subtest: input budget keeps entire pending action and fails closed for oversized authorization
+ok 7 - input budget keeps entire pending action and fails closed for oversized authorization
+  ---
+  duration_ms: 1236.231933
+  type: 'test'
+  ...
+# Subtest: real Loader / AgentLoop: denial reaches model, safer next call completes original turn
+ok 8 - real Loader / AgentLoop: denial reaches model, safer next call completes original turn
+  ---
+  duration_ms: 1312.76952
+  type: 'test'
+  ...
+# Subtest: native child composition inherits parent preset; new-root default does not override child selection
+ok 9 - native child composition inherits parent preset; new-root default does not override child selection
+  ---
+  duration_ms: 1291.780991
+  type: 'test'
+  ...
+# Subtest: independent reviewer model route leaves conversation route unchanged
+ok 10 - independent reviewer model route leaves conversation route unchanged
+  ---
+  duration_ms: 1229.315532
+  type: 'test'
+  ...
+# Subtest: allow composes with downstream deny, ask, and final guard
+    # Subtest: deny
+    ok 1 - deny
+      ---
+      duration_ms: 1209.014368
+      type: 'test'
+      ...
+    # Subtest: ask
+    ok 2 - ask
+      ---
+      duration_ms: 1131.158252
+      type: 'test'
+      ...
+    # Subtest: guard
+    ok 3 - guard
+      ---
+      duration_ms: 1209.506687
+      type: 'test'
+      ...
+    1..3
+ok 11 - allow composes with downstream deny, ask, and final guard
+  ---
+  duration_ms: 3550.549367
+  type: 'test'
+  ...
+(node:24531) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: PTC caught inner denial still enters main model context; outer program is also reviewed
+ok 12 - PTC caught inner denial still enters main model context; outer program is also reviewed
+  ---
+  duration_ms: 3219.370123
+  type: 'test'
+  ...
+# Subtest: timeout requests human approval, unavailable / never stay closed
+    # Subtest: allowed-once
+    ok 1 - allowed-once
+      ---
+      duration_ms: 1142.035405
+      type: 'test'
+      ...
+    # Subtest: unavailable
+    ok 2 - unavailable
+      ---
+      duration_ms: 1248.007197
+      type: 'test'
+      ...
+    # Subtest: never
+    ok 3 - never
+      ---
+      duration_ms: 1323.070159
+      type: 'test'
+      ...
+    1..3
+ok 13 - timeout requests human approval, unavailable / never stay closed
+  ---
+  duration_ms: 3714.234969
+  type: 'test'
+  ...
+# Subtest: cancellation and unloading reject late reviewer grants and restore preset
+    # Subtest: cancel
+    ok 1 - cancel
+      ---
+      duration_ms: 1386.015592
+      type: 'test'
+      ...
+    # Subtest: unload
+    ok 2 - unload
+      ---
+      duration_ms: 1303.333826
+      type: 'test'
+      ...
+    # Subtest: steer
+    ok 3 - steer
+      ---
+      duration_ms: 1293.241944
+      type: 'test'
+      ...
+    # Subtest: permission
+    ok 4 - permission
+      ---
+      duration_ms: 1361.907536
+      type: 'test'
+      ...
+    1..4
+ok 14 - cancellation and unloading reject late reviewer grants and restore preset
+  ---
+  duration_ms: 5345.901995
+  type: 'test'
+  ...
+# Subtest: three consecutive policy denials stop current turn and queued user work survives
+ok 15 - three consecutive policy denials stop current turn and queued user work survives
+  ---
+  duration_ms: 1251.44513
+  type: 'test'
+  ...
+# Subtest: manual switch persists; unload/reload revoke Auto without full access fallback
+ok 16 - manual switch persists; unload/reload revoke Auto without full access fallback
+  ---
+  duration_ms: 1242.993561
+  type: 'test'
+  ...
+# Subtest: unload restores the explicit preset chosen immediately before reentering Auto
+ok 17 - unload restores the explicit preset chosen immediately before reentering Auto
+  ---
+  duration_ms: 1238.938766
+  type: 'test'
+  ...
+# Subtest: dependency disappearance drains integration and provider return reactivates exactly once
+ok 18 - dependency disappearance drains integration and provider return reactivates exactly once
+  ---
+  duration_ms: 1371.003026
+  type: 'test'
+  ...
+# Subtest: permission owner removal restores logged Auto before its catalog disappears; owner can return
+ok 19 - permission owner removal restores logged Auto before its catalog disappears; owner can return
+  ---
+  duration_ms: 1208.313894
+  type: 'test'
+  ...
+# Subtest: global review concurrency limit holds across six real agents
+ok 20 - global review concurrency limit holds across six real agents
+  ---
+  duration_ms: 1331.345888
+  type: 'test'
+  ...
+# Subtest: long action history keeps request within byte budget and marks omitted facts
+ok 21 - long action history keeps request within byte budget and marks omitted facts
+  ---
+  duration_ms: 1398.943936
+  type: 'test'
+  ...
+# Subtest: surface replacement cannot turn a checkpoint into authorization or erase original human scope
+ok 22 - surface replacement cannot turn a checkpoint into authorization or erase original human scope
+  ---
+  duration_ms: 1162.938629
+  type: 'test'
+  ...
+1..22
+# tests 32
+# suites 0
+# pass 32
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 46958.887911

@@ -1,0 +1,28 @@
+TAP version 13
+# Subtest: built namespace exports metadata and actual Loader waits for missing dependencies
+ok 1 - built namespace exports metadata and actual Loader waits for missing dependencies
+  ---
+  duration_ms: 511.07473
+  type: 'test'
+  ...
+# Subtest: built ESM through real Loader executes only approved action and unregisters Auto
+ok 2 - built ESM through real Loader executes only approved action and unregisters Auto
+  ---
+  duration_ms: 9879.767453
+  type: 'test'
+  ...
+# Subtest: Loader reports invalid configuration instead of activating defaults silently
+ok 3 - Loader reports invalid configuration instead of activating defaults silently
+  ---
+  duration_ms: 1551.811714
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11952.275012

@@ -1,0 +1,82 @@
+{
+  "verifiedOn": "2026-09-30",
+  "package": "dsh-codex-auto-approval@0.1.0",
+  "dsh": "0.2.0-rc.2",
+  "node": "v22.21.1",
+  "platform": "linux",
+  "profile": "codex-auto-artifact-test",
+  "artifact": "artifacts/dsh-codex-auto-approval-0.1.0.tgz",
+  "artifactBytes": 41247,
+  "artifactSha256": "4d234d673788cdcd8823d1920375f461e957c8b1750da1f3f9533d76d92aa2ec",
+  "commandsNormalized": [
+    [
+      "dsh",
+      "plugin",
+      "--profile",
+      "codex-auto-artifact-test",
+      "add",
+      "artifacts/dsh-codex-auto-approval-0.1.0.tgz",
+      "--ignore-scripts",
+      "--store-dir",
+      "<temporary pnpm store>"
+    ],
+    [
+      "dsh",
+      "--profile",
+      "codex-auto-artifact-test",
+      "--dump-config"
+    ],
+    [
+      "dsh",
+      "plugin",
+      "--profile",
+      "codex-auto-artifact-test",
+      "remove",
+      "dsh-codex-auto-approval",
+      "--store-dir",
+      "<temporary pnpm store>"
+    ],
+    [
+      "dsh",
+      "--profile",
+      "codex-auto-artifact-test",
+      "--dump-config"
+    ]
+  ],
+  "effects": [
+    "approved"
+  ],
+  "decisions": [
+    {
+      "sessionId": "artifact-session",
+      "callId": "artifact-1",
+      "toolName": "artifact_effect",
+      "outcome": "deny",
+      "assessment": {
+        "outcome": "deny",
+        "risk_level": "high",
+        "user_authorization": "unknown",
+        "rationale": "Artifact policy rejected the first operation"
+      },
+      "elapsedMs": 3
+    },
+    {
+      "sessionId": "artifact-session",
+      "callId": "artifact-2",
+      "toolName": "artifact_effect",
+      "outcome": "allow",
+      "assessment": {
+        "outcome": "allow",
+        "risk_level": "low",
+        "user_authorization": "unknown",
+        "rationale": "Auto-review returned a low-risk allow decision."
+      },
+      "elapsedMs": 2
+    }
+  ],
+  "uninstallRemovedBundle": true,
+  "model": "deterministic test adapter",
+  "core": "actual CLI / profile resolver / Loader / DSH services",
+  "desktopGUI": "not tested",
+  "realModelProvider": "not called"
+}

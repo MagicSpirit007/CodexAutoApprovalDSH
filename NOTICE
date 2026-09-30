@@ -1,0 +1,14 @@
+DSH Codex Auto Approval
+
+Codex Guardian policy, assessment protocol, rejection guidance, and denial circuit
+breaker adapted from https://github.com/openai/codex at
+d42056091aded7feb1d88ac7e83972108b2aa478 (Apache License 2.0).
+Copyright OpenAI. The upstream license is included in LICENSE.
+
+DSH snapshot identity validation and history attribution adapted from
+packages/experimental/auto-review/src/index.ts in
+https://github.com/deepseek-ai/deepseek-harness at
+639ed015397290b3745d163aafe02ffee4aa3f84 (MIT).
+Copyright DeepSeek. The upstream license is included in licenses/DSH-MIT.txt.
+Changes add bounded review context, retained authorization, readonly investigation,
+default activation, technical-failure handoff, rejection feedback, and lifecycle handling.

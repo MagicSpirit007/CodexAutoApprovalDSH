@@ -1,0 +1,11 @@
+node_modules/
+lib/
+/artifacts/*
+!/artifacts/dsh-codex-auto-approval-0.1.0.tgz
+!/artifacts/SHA256SUMS
+.test-home/
+*.tgz
+!/artifacts/dsh-codex-auto-approval-0.1.0.tgz
+docs/evidence/*.log
+docs/evidence/profile-*.log
+docs/evidence/package-result.json
