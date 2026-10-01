@@ -2,38 +2,68 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-将 Codex CLI **“Approve for me”** 背后的 Guardian 审批器移植为独立的 **DeepSeek Harness（DSH）** 插件，包括风险评估、用户授权判断、结构化决策、只读调查、重试与拒绝熔断。
+在运行长时间的任务时，手动审批劳心费力，完全授权提心吊胆。于是我把最喜欢的 Codex CLI 的自动审批**“Approve for me”** 背后的 Guardian 审批器移植为独立的 **DeepSeek Harness（DSH）** 插件，包括风险评估、用户授权判断、结构化决策、只读调查、重试与拒绝熔断。
 
-全新顶层会话默认进入 **Auto**，默认使用会话当前模型审批。操作被拒绝后，主代理收到原因和纠正指引，可继续采用更安全的方案。
+现在可以安全的进行数小时的长时间任务。
 
-插件通过 DSH 的模型适配器运行，无需调用 Codex CLI，也不要求 OpenAI API 账号。
+全新顶层会话默认进入 **CodexAutoApproval**，默认使用会话当前模型审批。操作被拒绝后，主代理收到原因和纠正指引，可继续采用更安全的方案。
 
 | 组件 | 支持版本 |
 | --- | --- |
 | DSH Desktop / CLI | `0.2.0-rc.2` |
-| 插件 | `0.1.0` |
+| 插件 | `0.1.1` |
 | Node.js | `^22.19.0` 或 `>=24.0.0` |
+
+官方 `@deepseek-ai/dsh-experimental-auto-review` 可同时启用。
+
+## 审批流程
+
+```mermaid
+flowchart TD
+    action["主代理提交操作"] --> review["Guardian 审批：当前或指定模型"]
+    review -. "必要时" .-> investigate["只读调查：文件、元数据、目录"]
+    investigate -. "补充事实" .-> review
+    review -->|批准| gates["继续通过宿主门禁"]
+    gates -->|宿主放行| execute["执行当次操作"]
+    review -->|策略拒绝| deny["阻止操作，返回原因与纠正指引"]
+    deny -->|提出更安全的方案| action
+    review -->|技术失败| fallback["DSH 原生人工审批"]
+    fallback -->|allowed-once| gates
+    fallback -->|never / 拒绝 / 无法审批 / 取消| stop["不执行"]
+
+    classDef reviewer fill:#dbeafe,stroke:#2563eb,color:#172554
+    classDef allowed fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef denied fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+    classDef manual fill:#f3e8ff,stroke:#9333ea,color:#581c87
+    classDef blocked fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    class review,investigate reviewer
+    class gates,execute allowed
+    class deny denied
+    class fallback manual
+    class stop blocked
+```
 
 ## 安装
 
-下载[已构建的插件包](https://github.com/MagicSpirit007/CodexAutoApprovalDSH/raw/refs/heads/main/artifacts/dsh-codex-auto-approval-0.1.0.tgz)。SHA-256 校验值见 [artifacts/SHA256SUMS](artifacts/SHA256SUMS)。
-
-若启用了官方 `@deepseek-ai/dsh-auto-review`，请先停用它。两者都注册宿主的 `auto` 权限预设，重复注册会明确报错。
+1. 下载[已构建的插件包](artifacts/dsh-codex-auto-approval-0.1.1.tgz)。
+2. 推荐：直接发链接给AI。
 
 ### Desktop
 
 1. 打开 DSH 插件管理，安装下载的 `.tgz` 文件。
-2. 启用 `codex-auto-approval`。
-3. 新建顶层会话，检查权限预设是否为 **Auto**。
+2. 启用 `dsh-codex-auto-approval`。
+3. 新建顶层会话，检查权限预设是否为 **CodexAutoApproval**。
 
-安装包包含编译后的 ESM、类型声明、策略资源和 bundle patch，无需现场编译或修改宿主源码。这些 Desktop 步骤依据宿主插件工作流编写，Desktop 界面尚未实测；已安装的 CLI 产物已通过功能验证。
+升级后原有 `auto` 会话继续使用官方 Auto review；手动选择 CodexAutoApproval 才切换审批器。全新根会话仍默认 CodexAutoApproval。
+
+作者已验证 DSH Desktop 可正常使用。
 
 ### CLI
 
 将 `my-profile` 换成实际 profile，并使用下载文件的完整路径：
 
 ```sh
-dsh plugin --profile my-profile add /absolute/path/dsh-codex-auto-approval-0.1.0.tgz
+dsh plugin --profile my-profile add /absolute/path/dsh-codex-auto-approval-0.1.1.tgz
 dsh --profile my-profile --dump-config
 dsh --profile my-profile
 ```
@@ -41,7 +71,7 @@ dsh --profile my-profile
 Windows PowerShell 示例：
 
 ```powershell
-dsh plugin --profile my-profile add 'C:\Downloads\dsh-codex-auto-approval-0.1.0.tgz'
+dsh plugin --profile my-profile add 'C:\Downloads\dsh-codex-auto-approval-0.1.1.tgz'
 ```
 
 bundle 会自动加入插件层。Desktop 的专用 profile 由 Electron 管理，不要用 CLI 启动 `desktop` profile。
@@ -54,12 +84,12 @@ bundle 会自动加入插件层。Desktop 的专用 profile 由 Electron 管理�
 dsh plugin --profile my-profile remove dsh-codex-auto-approval
 ```
 
-停用会中止正在进行的审批并撤销注册。仍处于 Auto 的会话恢复进入 Auto 前的已知预设；无法确定此前预设时，使用宿主配置的默认预设。
+停用会中止正在进行的审批并撤销注册。仍处于 CodexAutoApproval 的会话恢复进入该模式前的已知预设；无法确定此前预设时，使用宿主配置的默认预设。
 
 ## 审批行为
 
-- **全新根会话默认 Auto。** 恢复、fork、压缩会话保留已选权限，手动切换后不会在下一轮重新开启 Auto。
-- **子代理使用 DSH 原生继承。** 继承文件权限和 Auto 身份，人工审批策略固定为 `never`。子代理仍逐调用自动审查，技术失败时不能弹出人工确认。
+- **全新根会话默认 CodexAutoApproval。** 恢复、fork、压缩会话保留已选权限，手动切换后不会在下一轮重新开启 CodexAutoApproval。
+- **子代理保留 DSH 原生权限继承，并补充独立审批身份。** 继承文件权限和 CodexAutoApproval 身份，人工审批策略固定为 `never`。子代理仍逐调用自动审查，技术失败时不能弹出人工确认。
 - **每次精确操作分别审查。** 覆盖原生工具调用、完整的外层 `run_code` 程序及其内部 SDK 调用，不缓存许可；其他宿主门禁仍可拒绝或要求人工审批。
 - **策略拒绝阻止当次操作。** 主代理收到理由和 Codex 纠正指引，可采用实质上更安全的方案。PTC 内部拒绝即使被程序 `catch` 捕获，也会进入主代理上下文。多次拒绝可能触发下述熔断。
 - **技术失败转原生人工审批。** 可恢复错误在 90 秒总时限内最多尝试三次；重试耗尽、无效输出或必要上下文超限时转交 DSH 审批服务。仅 `allowed-once` 放行；`never`、拒绝、无法提供人工审批和取消均不执行。无法匹配持久会话记录的操作直接拒绝。
@@ -72,7 +102,7 @@ dsh plugin --profile my-profile remove dsh-codex-auto-approval
 
 审批器仅有三项通过 `ctx.fs` 提供的私有调查能力：读取有界文件窗口、查看元数据和列目录。它不能调用宿主工具、执行命令、启动进程、写文件或请求网络。审批上下文和调查读取的文件内容会发送给所配置的模型提供方。
 
-Auto 使用宿主完整访问权限，仍受其他宿主门禁约束。模型审查不提供操作系统隔离或确定性的安全保证；底层取消传播也依赖所配置的模型适配器。
+CodexAutoApproval 使用宿主完整访问权限，仍受其他宿主门禁约束。模型审查不提供操作系统隔离或确定性的安全保证；底层取消传播也依赖所配置的模型适配器。
 
 ## 配置
 
@@ -91,7 +121,7 @@ Auto 使用宿主完整访问权限，仍受其他宿主门禁约束。模型审
 
 | 参数 | 默认 | 含义 |
 | --- | ---: | --- |
-| `autoEnableNewSessions` | `true` | 全新根会话默认开启 Auto |
+| `autoEnableNewSessions` | `true` | 全新根会话默认开启 CodexAutoApproval |
 | `reviewerProvider`, `reviewerModel` | 未设置 | 独立审批路由，两项须同时提供非空值 |
 | `reviewTimeoutMs` | `90000` | 包含排队、调查和重试的总审批时限；人工回答时间另计 |
 | `maxAttempts` | `3` | 可恢复技术错误的最大尝试次数 |
@@ -105,28 +135,6 @@ Auto 使用宿主完整访问权限，仍受其他宿主门禁约束。模型审
 | `maxRecentDenials` | `10` | 窗口内策略拒绝阈值，不得大于窗口大小 |
 
 数值必须为正整数，`reviewTimeoutMs` 还须处于 Node 计时器有效范围。无效配置会在加载时失败。
-
-## 构建与测试
-
-使用支持范围内的 Node.js 和 pnpm `11.7.0`：
-
-```sh
-git clone https://github.com/MagicSpirit007/CodexAutoApprovalDSH.git
-cd CodexAutoApprovalDSH
-pnpm install --frozen-lockfile
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm test:built
-pnpm pack --pack-destination artifacts
-pnpm test:package
-```
-
-测试使用真实 Cordis、Loader、会话、代理、工具、审批、文件系统和 PTC 服务，仅模型/API 边界采用确定性测试适配器。`test:package` 把实际 tarball 安装到临时 `DSH_HOME`，检查拒绝和放行的操作，验证停用恢复，通过官方 CLI 移除插件，最后删除临时 profile。
-
-PTC 测试需要本地子进程与 IPC 权限。若 `PATH` 中没有可用的 pnpm，可用 `DSH_TEST_PNPM` 指向 `pnpm.cjs`，用 `DSH_TEST_STORE` 指定测试缓存目录。上述测试不修改现有用户 profile。
-
-当前验证结果：**32 项源码测试、3 项构建产物测试全部通过**，实际 CLI 安装、拒绝/放行执行、停用、移除及 Windows Node 基础检查也已通过。**Desktop 界面与真实模型提供方调用尚未验证。** 命令、证据和限制见[验收记录](docs/ACCEPTANCE-RESULTS.md)。
 
 ## 实现与来源
 

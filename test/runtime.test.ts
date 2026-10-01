@@ -5,6 +5,60 @@ import { REJECTION_INSTRUCTIONS } from '../src/assessment.js'
 import { captureDelegatedPolicyOverrides, appendDelegatedPolicyOverrides, applyChildComposition,
   childSessionMeta } from '@deepseek-ai/dsh-subagent'
 
+test('official Auto review and CodexAutoApproval keep independent labels, reviewers and lifetimes', async t => {
+  let codexReviews = 0, officialReviews = 0
+  const h = await harness(t, options => {
+    if (isReview(options)) { codexReviews++; return allow() }
+    if (typeof options.system === 'string' && options.system.startsWith('REVIEW_POLICY')) {
+      officialReviews++; return text('{"risk":"low","decision":"allow"}')
+    }
+    return JSON.stringify(options.messages).includes('"tool-call"') ? text('Done') :
+      tool('record_effect', { value: 'approved-by-selected-reviewer' })
+  })
+  const native = await h.ctx.plugin(await official('@deepseek-ai/dsh-experimental-auto-review'), {}).await()
+  const catalog = h.ctx.permissionPresets.catalog()
+  assert.equal(catalog.options.find(x => x.value === 'codex-auto-approval').name, 'CodexAutoApproval')
+  assert.equal(catalog.options.find(x => x.value === 'auto').name, 'auto')
+  assert.ok(!catalog.defaultOptions.some(x => x.value === 'codex-auto-approval'))
+  await h.run()
+  assert.equal(codexReviews, 1)
+  assert.equal(officialReviews, 0)
+  const other = await h.makeAgent()
+  h.ctx.permissionPresets.set(other.session, 'auto')
+  await h.run('Use the official reviewer', other)
+  assert.equal(codexReviews, 1)
+  assert.equal(officialReviews, 1)
+  // Switching to Codex and unloading it restores that session's official Auto.
+  h.ctx.permissionPresets.set(other.session, 'codex-auto-approval')
+  await h.entry.fiber.dispose()
+  assert.equal(h.ctx.permissionPresets.current(other.session), 'auto')
+  assert.ok(h.ctx.permissionPresets.names.includes('auto'))
+  assert.ok(!h.ctx.permissionPresets.names.includes('codex-auto-approval'))
+})
+
+test('delegation captures Codex identity before asynchronous setup and still reviews the child', async t => {
+  let reviews = 0
+  const h = await harness(t, options => {
+    if (isReview(options)) { reviews++; return allow() }
+    return JSON.stringify(options.messages).includes('"tool-call"') ? text('Done') :
+      tool('record_effect', { value: 'child-reviewed' })
+  })
+  const policy = captureDelegatedPolicyOverrides(h.agent)
+  const child = await h.makeAgent({ parentAgent: h.agent, meta: childSessionMeta(h.agent, 1, false),
+    async setup(childCtx, agent) {
+      h.ctx.permissionPresets.set(h.agent.session, 'workspace-write')
+      await Promise.resolve()
+      appendDelegatedPolicyOverrides(agent.session, policy)
+      applyChildComposition(childCtx, h.agent, {})
+    },
+  })
+  assert.equal(h.ctx.permissionPresets.current(child.session), 'codex-auto-approval')
+  assert.equal(h.ctx.approval.overrideOf(child.session), 'never')
+  await h.run('Do one child operation', child)
+  assert.equal(reviews, 1)
+  assert.deepEqual(h.effects, ['child-reviewed'])
+})
+
 test('real Loader / AgentLoop: denial reaches model, safer next call completes original turn', async t => {
   let main = 0, reviewed = 0
   const h = await harness(t, options => {
@@ -27,7 +81,7 @@ test('real Loader / AgentLoop: denial reaches model, safer next call completes o
     observations.push(event.outcome)
     if (event.assessment) event.assessment.outcome = 'allow' // immutable observation; throwing is contained
   })
-  assert.equal(h.ctx.permissionPresets.current(h.agent.session), 'auto')
+  assert.equal(h.ctx.permissionPresets.current(h.agent.session), 'codex-auto-approval')
   await h.run()
   assert.deepEqual(h.effects, ['safe'])
   assert.equal(await h.effectFile(), 'safe')
@@ -41,7 +95,7 @@ test('real Loader / AgentLoop: denial reaches model, safer next call completes o
 
 test('native child composition inherits parent preset; new-root default does not override child selection', async t => {
   const h = await harness(t, () => text('Done'))
-  for (const preset of ['auto', 'workspace-write']) {
+  for (const preset of ['codex-auto-approval', 'workspace-write']) {
     h.ctx.permissionPresets.set(h.agent.session, preset)
     const policy = captureDelegatedPolicyOverrides(h.agent)
     const child = await h.makeAgent({ parentAgent: h.agent, meta: childSessionMeta(h.agent, 1, false),
@@ -50,10 +104,10 @@ test('native child composition inherits parent preset; new-root default does not
         applyChildComposition(childCtx, h.agent, {})
       },
     })
-    assert.equal(h.ctx.permissionPresets.current(child.session), preset === 'auto' ? 'auto' : 'custom')
+    assert.equal(h.ctx.permissionPresets.current(child.session), preset === 'codex-auto-approval' ? 'codex-auto-approval' : 'custom')
     assert.equal(h.ctx.approval.overrideOf(child.session), 'never')
     assert.ok(child.session.snapshotEvents().some(e => e.type === 'sandbox/mode'
-      && e.data.mode === (preset === 'auto' ? 'danger-full-access' : 'workspace-write')))
+      && e.data.mode === (preset === 'codex-auto-approval' ? 'danger-full-access' : 'workspace-write')))
   }
 })
 
@@ -138,7 +192,7 @@ test('cancellation and unloading reject late reviewer grants and restore preset'
       if (mode === 'unload') {
         await h.entry.fiber.dispose()
         assert.equal(h.ctx.permissionPresets.current(h.agent.session), 'workspace-write')
-        assert.ok(!h.ctx.permissionPresets.names.includes('auto'))
+        assert.ok(!h.ctx.permissionPresets.names.includes('codex-auto-approval'))
       }
       released.resolve()
       await h.agent.whenIdle()
@@ -168,7 +222,7 @@ test('manual switch persists; unload/reload revoke Auto without full access fall
   assert.equal(h.ctx.permissionPresets.current(h.agent.session), 'workspace-write')
   await h.entry.fiber.restart()
   const other = await h.makeAgent()
-  assert.equal(h.ctx.permissionPresets.current(other.session), 'auto')
+  assert.equal(h.ctx.permissionPresets.current(other.session), 'codex-auto-approval')
   await h.entry.fiber.dispose()
   assert.equal(h.ctx.permissionPresets.current(other.session), 'workspace-write')
   assert.equal(h.ctx.permissionPresets.current(h.agent.session), 'workspace-write')
@@ -177,7 +231,7 @@ test('manual switch persists; unload/reload revoke Auto without full access fall
 test('unload restores the explicit preset chosen immediately before reentering Auto', async t => {
   const h = await harness(t, () => text('Done'))
   h.ctx.permissionPresets.set(h.agent.session, 'danger-full-access')
-  h.ctx.permissionPresets.set(h.agent.session, 'auto')
+  h.ctx.permissionPresets.set(h.agent.session, 'codex-auto-approval')
   await h.entry.fiber.dispose()
   assert.equal(h.ctx.permissionPresets.current(h.agent.session), 'danger-full-access')
 })
@@ -187,13 +241,13 @@ test('dependency disappearance drains integration and provider return reactivate
   const fs = h.owned.find(f => f.runtime.name === 'LocalFileSystem')
   await fs.dispose()
   await h.entry.fiber.await()
-  assert.ok(!h.ctx.permissionPresets.names.includes('auto'))
+  assert.ok(!h.ctx.permissionPresets.names.includes('codex-auto-approval'))
   assert.equal(h.ctx.permissionPresets.current(h.agent.session), 'workspace-write')
   const module = await official('@deepseek-ai/dsh-fs-local')
   await h.ctx.plugin(module.default, { cwd: h.cwd }).await()
   await h.entry.fiber.await()
-  assert.equal(h.ctx.permissionPresets.names.filter(x => x === 'auto').length, 1)
-  assert.equal(h.ctx.permissionPresets.current((await h.makeAgent()).session), 'auto')
+  assert.equal(h.ctx.permissionPresets.names.filter(x => x === 'codex-auto-approval').length, 1)
+  assert.equal(h.ctx.permissionPresets.current((await h.makeAgent()).session), 'codex-auto-approval')
 })
 
 test('permission owner removal restores logged Auto before its catalog disappears; owner can return', async t => {
@@ -206,8 +260,8 @@ test('permission owner removal restores logged Auto before its catalog disappear
   await h.ctx.plugin(module.default, {}).await()
   await h.entry.fiber.await()
   assert.equal(h.ctx.permissionPresets.current(h.agent.session), 'workspace-write')
-  assert.equal(h.ctx.permissionPresets.names.filter(x => x === 'auto').length, 1)
-  assert.equal(h.ctx.permissionPresets.current((await h.makeAgent()).session), 'auto')
+  assert.equal(h.ctx.permissionPresets.names.filter(x => x === 'codex-auto-approval').length, 1)
+  assert.equal(h.ctx.permissionPresets.current((await h.makeAgent()).session), 'codex-auto-approval')
 })
 
 test('global review concurrency limit holds across six real agents', async t => {

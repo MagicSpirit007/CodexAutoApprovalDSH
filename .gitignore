@@ -4,8 +4,12 @@ lib/
 !/artifacts/dsh-codex-auto-approval-0.1.0.tgz
 !/artifacts/SHA256SUMS
 .test-home/
+/backups/
 *.tgz
 !/artifacts/dsh-codex-auto-approval-0.1.0.tgz
 docs/evidence/*.log
 docs/evidence/profile-*.log
 docs/evidence/package-result.json
+
+!/artifacts/dsh-codex-auto-approval-0.1.1.tgz
+AGENTS.md

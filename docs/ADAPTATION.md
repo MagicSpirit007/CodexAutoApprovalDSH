@@ -19,3 +19,11 @@ DSH 依据为目标 npm 包 `0.2.0-rc.2` 的运行时类型/实现，以及官�
 卸载判断同时读取持久权限事实，避免预设提供方先撤销目录、将 Auto 派生为 custom 后漏掉恢复。正常路径使用预设服务；提供方已消失时，用捕获的已选 bundle 与官方 `setSandboxMode` / `setApprovalPolicy` 写回，再撤销 Auto 贡献。
 
 审批输入与上下文预算有界；目录后端 `listDir` 返回完整数组后再限量，读取窗口通过后端的 `readByteRange`。完整动作历史的查询沿用官方 `snapshotEvents()`：当前公开 API 没有等价的分页动作投影，临时扫描成本仍随持久日志增长；没有另建无限增长的插件日志或审批许可表。与 Codex 一样，模型评估不能提供确定性风险判断；本插件不是 OS 隔离机制。
+
+## 0.1.1 独立权限入口
+
+官方 `auto` 仍由 `@deepseek-ai/dsh-experimental-auto-review` 注册。本插件只注册 `codex-auto-approval`，菜单显示 `CodexAutoApproval`。rc.2 没有通用预设注册接口，因此插件在自己的 effect 生命周期内适配原服务的 `names`、`resolve` 和运行时 `derive`，仅增加本插件身份。原服务实例、配置、远程目录、投影、默认预设和 `registerAuto` 保持原实现；停用会恢复原属性描述符。`derive` 在类型声明中标为私有，因此这层适配限定于已验收的 rc.2，不修改宿主文件或 bundle 的官方权限行。
+
+rc.2 原生委派只捕获 `auto` 和完全访问身份。插件以 effect 包裹公开的 AgentRegistry.create，在调用发生时捕获 Codex 身份，原生 setup 完成后、子代理发布前写入该身份；取消和卸载恢复原方法。子代理原生沙箱和 `never` 策略保持原值，恢复会话沿用持久身份。
+
+停用插件只撤销自己的预设，官方 `auto` 继续可用；从官方模式切换到 Codex 后停用，会恢复原先所选的官方模式。

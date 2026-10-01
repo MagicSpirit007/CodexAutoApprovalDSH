@@ -1,0 +1,26 @@
+{
+  "package": "dsh-codex-auto-approval@0.1.1",
+  "sourceTests": {
+    "passed": 34,
+    "failed": 0
+  },
+  "builtTests": {
+    "passed": 3,
+    "failed": 0
+  },
+  "typecheck": "passed",
+  "artifactSha256": "c501cdb3a101f9e6c6dc709a299326dda471180498fc2b8e02e4ae7cc24e5ce3",
+  "desktopProfile": "/mnt/c/Users/18993/.dsh/profiles/desktop",
+  "bundles": [
+    "@deepseek-ai/dsh-base",
+    "@deepseek-ai/dsh-web-app",
+    "@deepseek-ai/dsh-experimental-auto-review",
+    "dsh-codex-auto-approval"
+  ],
+  "installedCodeMatchesBuild": true,
+  "userPatchUnchanged": true,
+  "backup": "/mnt/d/CodexAutoReview/dsh-codex-auto-approval/backups/desktop-before-0.1.1-20261001-144257",
+  "desktopRuntimeEvidence": "desktop-independent-result.json",
+  "guiVerification": "unavailable: node_repl rejected WSL sandboxCwd",
+  "runningDesktopRestarted": false
+}

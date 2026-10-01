@@ -50,6 +50,7 @@ export async function harness(t, route, { config = {}, ptc = false, plugin, spec
   // Dependencies, session log, scheduling, gate, approvals, FS and PTC are real.
   // Only the remote model is replaced by a deterministic adapter.
   const owned = []
+  const codex = plugin ?? await import(specifier ?? '../src/index.ts')
   t.after(async () => { await ctx.fiber.dispose(); await rm(cwd, { recursive: true, force: true }) })
   const core = [
     ['@deepseek-ai/dsh-session-projection', {}], ['@deepseek-ai/dsh-session', {}],
@@ -78,7 +79,7 @@ export async function harness(t, route, { config = {}, ptc = false, plugin, spec
   await loopFiber.await()
   await ctx.plugin(Loader, { baseUrl })
   const loader = ctx.loader
-  if (!specifier) loader.builtins.auto = plugin ?? await import('../src/index.ts')
+  if (!specifier) loader.builtins.auto = codex
   const entryId = await loader.create({ name: specifier ?? 'cordis:auto', config })
   await loader.await()
   const entry = loader.resolve(entryId)

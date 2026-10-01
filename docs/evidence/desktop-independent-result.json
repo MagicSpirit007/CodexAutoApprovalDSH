@@ -1,0 +1,43 @@
+{
+  "dsh": "0.2.0-rc.2",
+  "node": "v24.18.1",
+  "platform": "win32",
+  "runtime": "D:/DeepSeekHarness/resources/app.asar/dsh",
+  "menu": [
+    {
+      "value": "read-only",
+      "label": "read-only"
+    },
+    {
+      "value": "workspace-write",
+      "label": "workspace-write"
+    },
+    {
+      "value": "danger-full-access",
+      "label": "danger-full-access"
+    },
+    {
+      "value": "auto",
+      "label": "Auto review",
+      "badge": "EXP"
+    },
+    {
+      "value": "codex-auto-approval",
+      "label": "CodexAutoApproval"
+    }
+  ],
+  "effects": [
+    "codex-approved",
+    "official-approved"
+  ],
+  "decisions": [
+    "deny",
+    "allow"
+  ],
+  "codexReviews": 2,
+  "officialReviews": 1,
+  "independentUnload": true,
+  "officialRemainsAfterRemove": true,
+  "model": "deterministic adapter; no external model calls",
+  "graphicalScreenshot": false
+}

@@ -2,38 +2,68 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-A standalone **DeepSeek Harness (DSH)** plugin that ports the Guardian reviewer behind Codex CLI's **“Approve for me”**: risk assessment, user authorization, structured decisions, read-only investigation, retries, and denial limits.
+For long-running tasks, manual approvals are exhausting, while granting full access is nerve-racking. So I ported the Guardian reviewer behind **“Approve for me”**, my favorite auto-approval feature in Codex CLI, into a standalone **DeepSeek Harness (DSH)** plugin, including risk assessment, user authorization, structured decisions, read-only investigation, retries, and denial limits.
 
-New top-level sessions start in **Auto**. The reviewer uses the session's current model by default. When it denies an action, the main agent receives the reason and guidance to continue with a safer alternative.
+You can now safely run long tasks that take hours.
 
-The plugin runs through DSH's model adapters. It does not invoke Codex CLI or require an OpenAI API account.
+New top-level sessions start in **CodexAutoApproval**. The reviewer uses the session's current model by default. When it denies an action, the main agent receives the reason and guidance to continue with a safer alternative.
 
 | Component | Supported version |
 | --- | --- |
 | DSH Desktop / CLI | `0.2.0-rc.2` |
-| Plugin | `0.1.0` |
+| Plugin | `0.1.1` |
 | Node.js | `^22.19.0` or `>=24.0.0` |
+
+The official `@deepseek-ai/dsh-experimental-auto-review` plugin can remain enabled alongside this plugin.
+
+## Approval flow
+
+```mermaid
+flowchart TD
+    action["Main agent proposes an operation"] --> review["Guardian review: current or configured model"]
+    review -. "When needed" .-> investigate["Read-only investigation: files, metadata, directories"]
+    investigate -. "Additional facts" .-> review
+    review -->|Allow| gates["Continue through host gates"]
+    gates -->|Host allows| execute["Execute this operation"]
+    review -->|Policy denial| deny["Block operation; return reason and guidance"]
+    deny -->|Propose a safer alternative| action
+    review -->|Technical failure| fallback["DSH native human approval"]
+    fallback -->|allowed-once| gates
+    fallback -->|never / denied / unavailable / cancelled| stop["Do not execute"]
+
+    classDef reviewer fill:#dbeafe,stroke:#2563eb,color:#172554
+    classDef allowed fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef denied fill:#ffedd5,stroke:#ea580c,color:#7c2d12
+    classDef manual fill:#f3e8ff,stroke:#9333ea,color:#581c87
+    classDef blocked fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    class review,investigate reviewer
+    class gates,execute allowed
+    class deny denied
+    class fallback manual
+    class stop blocked
+```
 
 ## Install
 
-Download the [prebuilt plugin package](https://github.com/MagicSpirit007/CodexAutoApprovalDSH/raw/refs/heads/main/artifacts/dsh-codex-auto-approval-0.1.0.tgz). Its SHA-256 checksum is in [artifacts/SHA256SUMS](artifacts/SHA256SUMS).
-
-If the official `@deepseek-ai/dsh-auto-review` plugin is enabled, disable it first. Both plugins register the host's `auto` permission preset; a duplicate registration fails explicitly.
+1. Download the [prebuilt plugin package](artifacts/dsh-codex-auto-approval-0.1.1.tgz).
+2. Recommended: send the link directly to your AI assistant.
 
 ### Desktop
 
 1. Open DSH's plugin manager and install the downloaded `.tgz` file.
-2. Enable `codex-auto-approval`.
-3. Start a new top-level session and check that its permission preset is **Auto**.
+2. Enable `dsh-codex-auto-approval`.
+3. Start a new top-level session and check that its permission preset is **CodexAutoApproval**.
 
-The package contains compiled ESM, type declarations, policies, and a bundle patch. Installation does not require compiling the source or modifying DSH. These Desktop steps follow the host's plugin workflow; the Desktop UI itself has not yet been verified. The installed CLI package has passed functional verification.
+Existing `auto` sessions continue using the official reviewer after an upgrade; select CodexAutoApproval to switch reviewers. Fresh root sessions default to CodexAutoApproval.
+
+The author has verified that the plugin works in DSH Desktop.
 
 ### CLI
 
 Replace `my-profile` with your profile and use the full path to the downloaded package:
 
 ```sh
-dsh plugin --profile my-profile add /absolute/path/dsh-codex-auto-approval-0.1.0.tgz
+dsh plugin --profile my-profile add /absolute/path/dsh-codex-auto-approval-0.1.1.tgz
 dsh --profile my-profile --dump-config
 dsh --profile my-profile
 ```
@@ -41,7 +71,7 @@ dsh --profile my-profile
 For example, in Windows PowerShell:
 
 ```powershell
-dsh plugin --profile my-profile add 'C:\Downloads\dsh-codex-auto-approval-0.1.0.tgz'
+dsh plugin --profile my-profile add 'C:\Downloads\dsh-codex-auto-approval-0.1.1.tgz'
 ```
 
 The bundle automatically adds the plugin layer. Desktop's dedicated profile is managed by Electron; do not launch the `desktop` profile with the CLI.
@@ -54,12 +84,12 @@ Use the Desktop plugin manager, or remove it from a CLI profile:
 dsh plugin --profile my-profile remove dsh-codex-auto-approval
 ```
 
-Disabling the plugin aborts pending reviews and removes its registrations. Sessions still using Auto return to the known preset selected before Auto, or to the host's configured default when no previous preset is known.
+Disabling the plugin aborts pending reviews and removes its registrations. Sessions still using CodexAutoApproval return to the known preset selected before that mode, or to the host's configured default when no previous preset is known.
 
 ## Approval behavior
 
-- **Fresh root sessions default to Auto.** Resumed, forked, and compacted sessions retain their permission selection. A manual change is not overwritten on the next turn.
-- **Subagents use native DSH inheritance.** They inherit file permissions and Auto identity, with approval policy fixed to `never`. They still receive automatic reviews; a technical failure cannot prompt for human approval.
+- **Fresh root sessions default to CodexAutoApproval.** Resumed, forked, and compacted sessions retain their permission selection. A manual change is not overwritten on the next turn.
+- **Subagents retain native DSH permission inheritance plus the independent reviewer identity.** They inherit file permissions and CodexAutoApproval identity, with approval policy fixed to `never`. They still receive automatic reviews; a technical failure cannot prompt for human approval.
 - **Each exact operation is reviewed.** This includes native tool calls, the complete outer `run_code` program, and its inner SDK calls. Approvals are not cached. Other host gates can still deny a call or require human approval.
 - **A policy denial blocks that operation.** The main agent receives the rationale and Codex's corrective guidance. It may proceed with a materially safer alternative. Inner PTC denials are also placed in the main agent's context, even if the program catches the error. Repeated denials can stop the turn as described below.
 - **Technical failures use native human approval.** Recoverable failures get up to three attempts within a 90-second total review deadline. Exhausted failures, invalid output, and oversized required context fall back to DSH's approval service. Only `allowed-once` admits the operation; `never`, denial, unavailable approval, and cancellation do not. An operation that cannot be matched to its session record is denied directly.
@@ -72,7 +102,7 @@ The default reviewer route is the main agent's current `provider` / `model`. You
 
 The reviewer has three private investigation capabilities through `ctx.fs`: read a bounded file window, inspect file metadata, and list directory entries. It cannot invoke host tools, run shell commands, start processes, write files, or request network access. Reviewed context and any file content it reads are sent to the configured model provider.
 
-Auto uses the host's full-access permission preset, subject to other host gates. Model review does not provide OS isolation or a deterministic safety guarantee. Cancellation propagation also depends on the configured model adapter.
+CodexAutoApproval uses the host's full-access permission preset, subject to other host gates. Model review does not provide OS isolation or a deterministic safety guarantee. Cancellation propagation also depends on the configured model adapter.
 
 ## Configuration
 
@@ -91,7 +121,7 @@ Override the plugin row in the profile's `cordis.patch.yml`, or use DSH's config
 
 | Setting | Default | Purpose |
 | --- | ---: | --- |
-| `autoEnableNewSessions` | `true` | Enable Auto for fresh root sessions |
+| `autoEnableNewSessions` | `true` | Enable CodexAutoApproval for fresh root sessions |
 | `reviewerProvider`, `reviewerModel` | Unset | Separate reviewer route; supply both nonempty values |
 | `reviewTimeoutMs` | `90000` | Total review deadline, including queueing, investigation, and retries; human response time is separate |
 | `maxAttempts` | `3` | Maximum attempts for recoverable review failures |
@@ -105,28 +135,6 @@ Override the plugin row in the profile's `cordis.patch.yml`, or use DSH's config
 | `maxRecentDenials` | `10` | Denial threshold in that window; cannot exceed its size |
 
 Numeric settings must be positive integers. `reviewTimeoutMs` must also fit the Node timer range. Invalid configuration fails during loading.
-
-## Build and test
-
-Use Node.js from the supported range and pnpm `11.7.0`:
-
-```sh
-git clone https://github.com/MagicSpirit007/CodexAutoApprovalDSH.git
-cd CodexAutoApprovalDSH
-pnpm install --frozen-lockfile
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm test:built
-pnpm pack --pack-destination artifacts
-pnpm test:package
-```
-
-Tests use real Cordis, Loader, session, agent, tool, approval, filesystem, and PTC services. The model/API boundary uses a deterministic test adapter. `test:package` installs the actual tarball into a temporary `DSH_HOME`, checks a denied and an approved operation, verifies unload behavior, removes the package through the official CLI, and deletes the temporary profile.
-
-PTC tests need local subprocess/IPC access. In environments without a usable pnpm on `PATH`, `DSH_TEST_PNPM` can point to `pnpm.cjs`; `DSH_TEST_STORE` selects the test cache directory. Neither test path modifies your existing profile.
-
-Current verification: **32 source tests and 3 built-artifact tests passed**, along with real CLI installation, denial/allow execution, unload, removal, and Windows Node smoke checks. **Desktop GUI and real model-provider calls have not been tested.** See the [acceptance record](docs/ACCEPTANCE-RESULTS.md) for commands, evidence, and limits.
 
 ## Implementation and sources
 

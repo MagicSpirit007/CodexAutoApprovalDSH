@@ -1,7 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
-import { AUTO_PRESET, type PresetSpec } from '@deepseek-ai/dsh-permission-presets'
+import type { PresetSpec } from '@deepseek-ai/dsh-permission-presets'
 import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy'
 import type { Session } from '@deepseek-ai/dsh-session'
 import type { PreToolDecision, ToolExecution, ToolExecutionToken } from '@deepseek-ai/dsh-tools'
@@ -13,8 +13,10 @@ import { ContextMemory } from './context.js'
 import { DenialWindow } from './denials.js'
 import { review } from './reviewer.js'
 import { snapshotAutoReview } from './snapshot.js'
+import { CODEX_PRESET, registerCodexPreset } from './presets.js'
 
 export { Config }
+export { CODEX_PRESET } from './presets.js'
 export const name = 'dsh-codex-auto-approval'
 export const inject = ['permissionPresets', 'approval', 'sessions', 'tools', 'llm', 'fs', 'agents']
 
@@ -39,23 +41,20 @@ interface State { epoch: number; memory: ContextMemory; denials: DenialWindow }
 interface Grant { agent: Agent; epoch: number; signal: AbortSignal }
 
 /** Auto's owner may withdraw its catalog before dependent cleanup begins. */
-function loggedAutoSelected(session: Session): boolean {
+function loggedCodexSelected(session: Session): boolean {
   let preset: string | undefined, sandbox: string | undefined, approval: string | undefined
   for (const event of session.snapshotEvents()) {
     if (event.type === 'permission/preset') preset = event.data.preset
     if (event.type === 'sandbox/mode') sandbox = event.data.mode
     if (event.type === 'approval/policy') approval = event.data.policy
   }
-  return preset === AUTO_PRESET && sandbox === 'danger-full-access' && ['ask', 'never'].includes(approval ?? '')
+  return preset === CODEX_PRESET && sandbox === 'danger-full-access' && ['ask', 'never'].includes(approval ?? '')
 }
 
 /** Installs a private Guardian reviewer, and makes fresh root sessions Auto. */
 export function apply(ctx: Context, config: Config): void {
   validateConfig(config)
   const presets = ctx.permissionPresets
-  if (presets.names.includes(AUTO_PRESET)) {
-    throw new Error('Codex Auto cannot share the Auto preset. Disable @deepseek-ai/dsh-auto-review first.')
-  }
   const sessions = ctx.sessions
   const lifecycle = new AbortController()
   const active = new Set<Promise<void>>()
@@ -76,7 +75,7 @@ export function apply(ctx: Context, config: Config): void {
   }
   const rememberPreset = (session: Session): void => {
     const current = presets.current(session)
-    if (current !== AUTO_PRESET && presets.names.includes(current)) {
+    if (current !== CODEX_PRESET && presets.names.includes(current)) {
       fallback.set(session, current)
       fallbackSpecs.set(session, { ...presets.resolve(current) })
     }
@@ -98,13 +97,31 @@ export function apply(ctx: Context, config: Config): void {
   }
 
   ctx.effect(function* () {
+    // DSH 0.2.0-rc.2 captures only official Auto/Full access identities. Capture
+    // our identity synchronously at delegation, then pin it inside child setup.
+    yield ctx.effect(() => {
+      const registry = ctx.agents
+      const original = registry.create
+      const create: typeof original = function (this: typeof registry, options) {
+        if (!options.parentAgent || presets.current(options.parentAgent.session) !== CODEX_PRESET) {
+          return original.call(this, options)
+        }
+        return original.call(this, { ...options, setup: async (childCtx, agent) => {
+          const commit = await options.setup?.(childCtx, agent)
+          agent.session.append('permission/preset', { preset: CODEX_PRESET })
+          return commit
+        } })
+      }
+      registry.create = create
+      return () => { if (registry.create === create) registry.create = original }
+    }, 'Codex delegation identity')
     yield ctx.on('session/created', session => { rememberPreset(session) })
     yield ctx.on('agent/created', ({ agent, source }) => {
       rememberPreset(agent.session)
       if (accepting && config.autoEnableNewSessions && source === 'startup'
         && !agent.session.header.isSeeded && agent.session.header.origin !== 'subagent'
         && agent.session.header.parentSession === undefined) {
-        presets.set(agent.session, AUTO_PRESET)
+        presets.set(agent.session, CODEX_PRESET)
       }
       return undefined
     })
@@ -123,7 +140,7 @@ export function apply(ctx: Context, config: Config): void {
     yield ctx.tools.guard(exec => {
       if (!exec.agent) return
       const grant = grants.get(exec.token)
-      const auto = presets.current(exec.agent.session) === AUTO_PRESET
+      const auto = presets.current(exec.agent.session) === CODEX_PRESET
       if (!grant && !auto) return
       if (!accepting || !auto || !grant || grant.signal.aborted || grant.epoch !== stateOf(exec.agent).epoch) {
         return 'Codex Auto approval is absent, cancelled, or stale; submit this action again with the current instructions.'
@@ -133,7 +150,7 @@ export function apply(ctx: Context, config: Config): void {
 
     yield ctx.on('tools/pre-execute', async (exec, next): Promise<PreToolDecision> => {
       const agent = exec.agent
-      if (!agent || presets.current(agent.session) !== AUTO_PRESET) return next()
+      if (!agent || presets.current(agent.session) !== CODEX_PRESET) return next()
       if (!accepting || lifecycle.signal.aborted) return { kind: 'cancel' }
       const complete = Promise.withResolvers<void>()
       active.add(complete.promise)
@@ -146,7 +163,7 @@ export function apply(ctx: Context, config: Config): void {
       const reviewSignal = AbortSignal.any([callerSignal, deadline.signal])
       let release: (() => void) | undefined
       const current = (): boolean => accepting && !callerSignal.aborted
-        && presets.current(agent.session) === AUTO_PRESET && state.epoch === epoch
+        && presets.current(agent.session) === CODEX_PRESET && state.epoch === epoch
       const admit = async (): Promise<PreToolDecision> => {
         if (!current()) return { kind: 'cancel' }
         let downstream: PreToolDecision
@@ -208,7 +225,7 @@ export function apply(ctx: Context, config: Config): void {
       }
     }, { prepend: true })
 
-    yield presets.registerAuto(() => {
+    yield registerCodexPreset(ctx, () => {
       if (!accepting) throw new Error('Codex Auto is closing')
     })
     // This generator releases in reverse order, serially. Keep Auto and its
@@ -219,7 +236,7 @@ export function apply(ctx: Context, config: Config): void {
       await Promise.allSettled([...active])
       grants.clear()
       for (const session of sessions.list()) {
-        if (!loggedAutoSelected(session)) continue
+        if (!loggedCodexSelected(session)) continue
         let target = fallback.get(session) ?? initialDefault.name
         let spec = fallbackSpecs.get(session) ?? initialDefault.spec
         try {

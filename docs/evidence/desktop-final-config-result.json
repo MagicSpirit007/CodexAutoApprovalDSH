@@ -1,0 +1,29 @@
+{
+  "profile": "C:/Users/18993/.dsh/profiles/desktop",
+  "bundles": [
+    "@deepseek-ai/dsh-base",
+    "@deepseek-ai/dsh-web-app",
+    "@deepseek-ai/dsh-experimental-auto-review",
+    "dsh-codex-auto-approval"
+  ],
+  "skippedBundles": [],
+  "warnings": [],
+  "plugins": [
+    {
+      "id": "permission",
+      "name": "@deepseek-ai/dsh-permission-presets",
+      "disabled": false
+    },
+    {
+      "id": "auto-review",
+      "name": "@deepseek-ai/dsh-experimental-auto-review",
+      "disabled": false
+    },
+    {
+      "id": "codex-auto-approval",
+      "name": "dsh-codex-auto-approval",
+      "disabled": false
+    }
+  ],
+  "inspection": "read-only; native Desktop profile composer; no session or server boot"
+}

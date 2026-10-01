@@ -29,7 +29,7 @@ test('built ESM through real Loader executes only approved action and unregister
   assert.deepEqual(h.effects, ['approved'])
   assert.equal(await h.effectFile(), 'approved')
   await h.entry.fiber.dispose()
-  assert.ok(!h.ctx.permissionPresets.names.includes('auto'))
+  assert.ok(!h.ctx.permissionPresets.names.includes('codex-auto-approval'))
   assert.equal(h.ctx.permissionPresets.current(h.agent.session), 'workspace-write')
 })
 

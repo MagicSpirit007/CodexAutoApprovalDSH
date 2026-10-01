@@ -47,7 +47,7 @@ async function cliRun(args, label) {
   return stdout
 }
 const profile = 'codex-auto-artifact-test'
-const tarball = resolve(process.argv[2] ?? join(root, 'artifacts/dsh-codex-auto-approval-0.1.0.tgz'))
+const tarball = resolve(process.argv[2] ?? join(root, 'artifacts/dsh-codex-auto-approval-0.1.1.tgz'))
 let shutdown
 try {
   await cliRun(['plugin', '--profile', profile, 'add', tarball, '--ignore-scripts',
@@ -110,7 +110,7 @@ try {
   const handle = await ctx.agents.create({ sessionId: SessionId('artifact-session'),
     meta: { cwd: temporary }, agentOptions: { provider: 'artifact-test', model: 'deterministic' } })
   const agent = handle.agent
-  assert.equal(ctx.permissionPresets.current(agent.session), 'auto')
+  assert.equal(ctx.permissionPresets.current(agent.session), 'codex-auto-approval')
   agent.followup(createUserMessage({ source: { kind: 'user', rpcId: 'artifact-user-request' },
     content: [{ type: 'text', text: 'Write only the approved local acceptance result.' }] }))
   await agent.whenIdle()
@@ -119,13 +119,13 @@ try {
   assert.deepEqual(decisions.map(x => x.outcome), ['deny', 'allow'])
   const installedManifest = JSON.parse(await readFile(join(home, 'profiles', profile, 'node_modules',
     'dsh-codex-auto-approval', 'package.json'), 'utf8'))
-  assert.equal(installedManifest.version, '0.1.0')
+  assert.equal(installedManifest.version, '0.1.1')
   const presetService = ctx.permissionPresets
   const entry = [...ctx.loader.entries()].find(entry => entry.options.name === 'dsh-codex-auto-approval')
   assert.ok(entry)
   await entry.fiber.dispose()
   assert.equal(presetService.current(agent.session), 'workspace-write')
-  assert.ok(!presetService.names.includes('auto'))
+  assert.ok(!presetService.names.includes('codex-auto-approval'))
   await handle.dispose()
   await shutdown.shutdown(0)
   shutdown = undefined
